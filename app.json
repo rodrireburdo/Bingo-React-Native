@@ -23,6 +23,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f06dbf28-4f02-4e3f-ad62-dcba22e74230"
+      }
+    },
+    "owner": "celada18"
   }
 }
