@@ -1,18 +1,20 @@
 import React, { useEffect, useState, createContext, useContext } from "react";
 import {
-    View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Keyboard } from "react-native";
-import { obtenerNumerosPorVendedor } from "../services/apiClient";
+    View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Alert
+} from "react-native";
+import { obtenerNumerosPorVendedor, eliminarNumero } from "../services/apiClient";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import EditNumeroModal from "../components/EditNumeroModal";
 import AddNumeroModal from "../components/AddNumeroModal";
+import LoadingModal from '../components/LoadingModal';
 
 const meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const ListaNumeros = ({ numeros, onSelect }) => (
+const ListaNumeros = ({ numeros, onSelect, onDelete }) => (
     <FlatList
         data={numeros}
         keyExtractor={(item, index) => index.toString()}
@@ -20,6 +22,7 @@ const ListaNumeros = ({ numeros, onSelect }) => (
             <TouchableOpacity
                 style={[styles.row, index % 2 === 0 ? styles.rowEven : styles.rowOdd]}
                 onPress={() => onSelect(item)}
+                onLongPress={() => onDelete(item)} // Se activa al mantener presionado
             >
                 <Text style={[styles.cell, styles.numeroCell]}>
                     {String(item.numero).padStart(5, "0")}
@@ -62,15 +65,6 @@ const HomeScreen = ({ route }) => {
         // Lógica para cerrar sesión (limpiar almacenamiento, redirigir a login, etc.)
         navigation.navigate("Auth");  // Cambiar "Login" al nombre de tu pantalla de inicio de sesión
     };
-    const closeMenu = () => {
-        setMenuVisible(false);
-    };
-
-    const handleTouchablePress = () => {
-        // Cerrar el teclado si está abierto y también cerrar el menú
-        Keyboard.dismiss();
-        closeMenu();
-    };
 
     const fetchNumeros = async () => {
         setLoading(true);
@@ -100,12 +94,41 @@ const HomeScreen = ({ route }) => {
         return matchesSearch && matchesMonthRange;
     });
 
+    // Función para confirmar y eliminar número
+    const confirmarEliminarNumero = (item) => {
+        Alert.alert(
+            "Eliminar Número",
+            `¿Estás seguro de que quieres eliminar el número ${item.numero}?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    onPress: async () => {
+                        setLoading(true); // Activar el modal de carga
+
+                        try {
+                            const response = await eliminarNumero(vendedor.id_vendedor, item.numero);
+                            Alert.alert("Aviso", response.mensaje);
+                            fetchNumeros(); // Actualizar lista después de eliminar
+                        } catch (error) {
+                            console.error("Error al eliminar número:", error);
+                            Alert.alert("Error", "No se pudo eliminar el número.");
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    style: "destructive",
+                },
+            ]
+        );
+    };
+
     const vendidos = filteredNumeros.filter(item => item.estado.toLowerCase() === "vendido");
     const disponibles = filteredNumeros.filter(item => item.estado.toLowerCase() === "disponible");
 
     const renderScene = SceneMap({
-        vendidos: () => <ListaNumeros numeros={vendidos} onSelect={setSelectedNumero} />,
-        disponibles: () => <ListaNumeros numeros={disponibles} onSelect={setSelectedNumero} />,
+        vendidos: () => <ListaNumeros numeros={vendidos} onSelect={setSelectedNumero} onDelete={confirmarEliminarNumero} />,
+        disponibles: () => <ListaNumeros numeros={disponibles} onSelect={setSelectedNumero} onDelete={confirmarEliminarNumero} />,
     });
 
     const routes = [
@@ -116,24 +139,26 @@ const HomeScreen = ({ route }) => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-            <View>
-                        <TouchableOpacity
-                            onPress={() => setMenuVisible(!menuVisible)}
-                            style={styles.menuButton}
-                        >
-                            <Text style={styles.menuText}>
-                                {vendedor.nombre}
-                            </Text>
-                        </TouchableOpacity>
+                <View>
+                    <LoadingModal visible={loading} />
 
-                        {menuVisible && (
-                            <View style={styles.menu}>
-                                <TouchableOpacity onPress={handleLogout}>
-                                    <Text style={styles.menuItem}>Cerrar Sesión</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </View>
+                    <TouchableOpacity
+                        onPress={() => setMenuVisible(!menuVisible)}
+                        style={styles.menuButton}
+                    >
+                        <Text style={styles.menuText}>
+                            {vendedor.nombre}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {menuVisible && (
+                        <View style={styles.menu}>
+                            <TouchableOpacity onPress={handleLogout}>
+                                <Text style={styles.menuItem}>Cerrar Sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
                 <View style={styles.filtersContainer}>
                     <TextInput
                         style={styles.searchInput}
@@ -148,7 +173,7 @@ const HomeScreen = ({ route }) => {
                                 style={styles.picker}
                                 onValueChange={(itemValue) => setSelectedStartMonth(itemValue)}
                             >
-                                <Picker.Item label="Mes de inicio" value="" />
+                                <Picker.Item label="Desde" value="" />
                                 {meses.map((mes, index) => (
                                     <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
                                 ))}
@@ -160,7 +185,7 @@ const HomeScreen = ({ route }) => {
                                 style={styles.picker}
                                 onValueChange={(itemValue) => setSelectedEndMonth(itemValue)}
                             >
-                                <Picker.Item label="Mes de fin" value="" />
+                                <Picker.Item label="Hasta" value="" />
                                 {meses.map((mes, index) => (
                                     <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
                                 ))}
@@ -168,9 +193,8 @@ const HomeScreen = ({ route }) => {
                         </View>
                     </View>
                 </View>
-                {loading ? (
-                    <ActivityIndicator size="large" color="#3498db" />
-                ) : (
+                <LoadingModal visible={loading} />
+
                     <TabView
                         navigationState={{ index, routes }}
                         renderScene={renderScene}
@@ -185,7 +209,6 @@ const HomeScreen = ({ route }) => {
                             />
                         )}
                     />
-                )}
             </View>
             <TouchableOpacity
                 onPress={() => setModalVisible(true)}
@@ -212,32 +235,32 @@ const HomeScreen = ({ route }) => {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: "#f8f9fa", paddingTop: 50 },
-    container: { flex: 1, padding: 0 }, 
+    container: { flex: 1, padding: 0 },
     title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 10, },
     row: { flexDirection: "row", padding: 10, borderBottomWidth: 1, borderColor: "#ddd", width: "100%" },
     rowEven: { backgroundColor: "#f1f1f1" },
     rowOdd: { backgroundColor: "#fff" },
     header: { backgroundColor: "#3498db", width: "100%", color: "white" },
     headerText: { flex: 1, fontWeight: "bold", color: "white", textAlign: "center", },
-    cell: { flex: 1, textAlign: "center", paddingHorizontal: 5 }, 
-    nombreCell: {}, 
+    cell: { flex: 1, textAlign: "center", paddingHorizontal: 5 },
+    nombreCell: {},
     numeroCell: { flex: 0.5 },
     cuotasCell: { flex: 0.6 },
     noData: { textAlign: "center", fontSize: 16, marginTop: 20, color: "black" },
     tabBar: { backgroundColor: "#3498db" },
     tabLabel: { color: "white", fontWeight: "bold" },
     headerContainer: { alignItems: 'flex-end', marginBottom: 20, },
-    addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center',   elevation: 5,  },
-    addButtonText: { color: "white", fontSize: 15, fontWeight: "bold",textAlign: 'center', },
+    addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
+    addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
     filtersContainer: { justifyContent: "space-between", marginBottom: 10, marginTop: 10, paddingHorizontal: 10, },
-    searchInput: { height: 40, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, paddingHorizontal: 10, backgroundColor: "white", fontSize: 16,  marginBottom: 10, },
+    searchInput: { height: 40, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, paddingHorizontal: 10, backgroundColor: "white", fontSize: 16, marginBottom: 10, },
     pickerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", },
     pickerWrapper: { flex: 1, backgroundColor: "white", borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, },
     picker: { backgroundColor: "#fff", height: "49", },
     menuContainer: { marginButtom: 10, },
     menuButton: { padding: 9, backgroundColor: '#3498db', alignItems: 'center', justifyContent: 'center', marginButtom: 100, },
     menuText: { color: 'white', fontSize: 16, },
-    menu: { position: 'absolute', top: 50,  right: "30%", backgroundColor: '#fff', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.3,shadowOffset: { width: 0, height: 4 }, shadowRadius: 4, elevation: 5, padding: 10, width: 150, zIndex: 999, },
+    menu: { position: 'absolute', top: 50, right: "30%", backgroundColor: '#fff', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 4, elevation: 5, padding: 10, width: 150, zIndex: 999, },
     menuItem: { padding: 10, fontSize: 16, color: '#333', },
 });
 

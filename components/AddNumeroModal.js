@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Modal, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-native';
-import { agregarNumerosDisponibles, eliminarNumero } from '../services/apiClient';
+import { agregarNumerosDisponibles } from '../services/apiClient';
+import LoadingModal from './LoadingModal';
 
 const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
     const [numeros, setNumeros] = useState('');
     const [listaNumeros, setListaNumeros] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     // Función para agregar números
     const handleAgregar = async () => {
@@ -15,41 +17,30 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
 
         const nuevosNumeros = numeros.split(',').map(num => num.trim().padStart(5, '0'));
 
+        setLoading(true); // Mostrar modal de carga
+
         try {
-            await agregarNumerosDisponibles(idVendedor, nuevosNumeros);
-            Alert.alert('Éxito', 'Números agregados correctamente.');
-            setListaNumeros([...listaNumeros, ...nuevosNumeros]); // Actualizar lista localmente
-            setNumeros('');
-            onSuccess();
+            const response = await agregarNumerosDisponibles(idVendedor, nuevosNumeros);
+            
+            // Si algunos números fueron agregados, actualizamos la lista
+            if (response.mensaje.includes("Números agregados correctamente")) {
+                const agregados = nuevosNumeros.filter(num => response.mensaje.includes(num));
+                setListaNumeros([...listaNumeros, ...agregados]);
+                setNumeros('');
+                onSuccess();
+            }
+
+            if (response?.mensaje) {
+                Alert.alert('Resultado', response.mensaje);
+            }
+            
         } catch (error) {
             console.error('Error al agregar números:', error);
             Alert.alert('Error', 'No se pudieron agregar los números.');
+        } finally {
+            setLoading(false);
+            onClose();
         }
-    };
-
-    // Función para eliminar número
-    const handleEliminar = (numero) => {
-        Alert.alert(
-            "Eliminar número",
-            `¿Estás seguro de eliminar el número ${numero}?`,
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Eliminar",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await eliminarNumero(idVendedor, numero);
-                            setListaNumeros(listaNumeros.filter(n => n !== numero)); // Actualizar lista localmente
-                            Alert.alert("Éxito", `Número ${numero} eliminado.`);
-                        } catch (error) {
-                            console.error("Error al eliminar número:", error);
-                            Alert.alert("Error", "No se pudo eliminar el número.");
-                        }
-                    }
-                }
-            ]
-        );
     };
 
     return (
@@ -72,23 +63,14 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
                     <TouchableOpacity style={styles.saveButton} onPress={handleAgregar}>
                         <Text style={styles.saveButtonText}>Agregar</Text>
                     </TouchableOpacity>
-                    
-                    {/* Lista de números */}
-                    <FlatList
-                        data={listaNumeros}
-                        keyExtractor={(item, index) => index.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity onLongPress={() => handleEliminar(item)}>
-                                <Text style={styles.numeroItem}>{item}</Text>
-                            </TouchableOpacity>
-                        )}
-                    />
-                    
+
                     <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                         <Text style={styles.closeButtonText}>Cerrar</Text>
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <LoadingModal visible={loading} />
         </Modal>
     );
 };

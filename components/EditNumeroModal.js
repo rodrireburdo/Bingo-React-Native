@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Modal, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { Picker } from '@react-native-picker/picker'; // Importar desde el nuevo paquete
-import { editarNumero } from '../services/apiClient'; 
+import { Picker } from '@react-native-picker/picker';
+import { editarNumero } from '../services/apiClient';
+import LoadingModal from './LoadingModal';
 
 const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
     const [cliente, setCliente] = useState('');
     const [estado, setEstado] = useState('');
-    const [cuotasPagadas, setCuotasPagadas] = useState(0); // Inicializar como número
+    const [cuotasPagadas, setCuotasPagadas] = useState(0);
+    const [loading, setLoading] = useState(false); // Estado para el modal de carga
 
     useEffect(() => {
         if (numero) {
-            // Inicializar los valores con los datos del número actual
             setCliente(numero.cliente || '');
             setEstado(numero.estado || '');
-            setCuotasPagadas(numero.cuotas_pagadas || 0); // Asegurarse de que sea un número
+            setCuotasPagadas(numero.cuotas_pagadas || 0);
         }
     }, [numero]);
 
@@ -23,31 +24,29 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
             return;
         }
 
+        setLoading(true); // Mostrar modal de carga
+
         try {
-            // Llamar a la función editarNumero con los datos
             const response = await editarNumero(id_vendedor, numero.numero, cliente, estado, cuotasPagadas);
 
             if (response.mensaje === 'Número actualizado correctamente') {
                 Alert.alert("Éxito", "Número actualizado correctamente.");
-                onSave();  // Llamar a la función onSave pasada como prop
-                onClose(); // Cerrar el modal
+                onSave();
+                onClose();
             } else {
                 Alert.alert("Error", response.mensaje || "Hubo un problema al actualizar el número.");
             }
         } catch (error) {
             Alert.alert("Error", "Error al guardar los cambios.");
+        } finally {
+            setLoading(false); // Ocultar modal de carga
         }
     };
 
     if (!numero) return null;
 
     return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
+        <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
             <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Editar Número</Text>
@@ -60,19 +59,13 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
                         onChangeText={setCliente}
                     />
 
-                    {/* Picker para el estado */}
                     <View style={styles.pickerContainer}>
-                        <Picker
-                            selectedValue={estado}
-                            onValueChange={(itemValue) => setEstado(itemValue)}
-                            style={styles.picker}
-                        >
+                        <Picker selectedValue={estado} onValueChange={setEstado} style={styles.picker}>
                             <Picker.Item label="Vendido" value="Vendido" />
                             <Picker.Item label="Disponible" value="Disponible" />
                         </Picker>
                     </View>
 
-                    {/* Cuotas pagadas con botones para incrementar y decrementar */}
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
                             style={styles.adjustButton}
@@ -80,17 +73,16 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
                         >
                             <Text style={styles.adjustButtonText}>-</Text>
                         </TouchableOpacity>
-                        <TextInput
-                            style={styles.inputCuotas}
-                            value={String(cuotasPagadas)}
-                            editable={false}
-                        />
+
+                        <TextInput style={styles.inputCuotas} value={String(cuotasPagadas)} editable={false} />
+
                         <TouchableOpacity
                             style={styles.adjustButton}
-                            onPress={() => setCuotasPagadas(prev => prev + 1)}
+                            onPress={() => setCuotasPagadas(prev => Math.min(12, prev + 1))}
                         >
                             <Text style={styles.adjustButtonText}>+</Text>
                         </TouchableOpacity>
+
                     </View>
 
                     <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -102,21 +94,23 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <LoadingModal visible={loading} />
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    modalContainer: { 
-        flex: 1, 
-        justifyContent: "center", 
-        alignItems: "center", 
-        backgroundColor: "rgba(0,0,0,0.5)" 
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.5)"
     },
-    modalContent: { 
-        backgroundColor: "#fff", 
-        padding: 20, 
-        borderRadius: 12, 
+    modalContent: {
+        backgroundColor: "#fff",
+        padding: 20,
+        borderRadius: 12,
         width: "85%",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
@@ -124,10 +118,10 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5
     },
-    modalTitle: { 
-        fontSize: 22, 
-        fontWeight: "bold", 
-        color: "#333", 
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#333",
         marginBottom: 15,
         textAlign: 'center'
     },
@@ -138,14 +132,14 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         textAlign: 'center'
     },
-    input: { 
-        borderWidth: 1, 
-        borderColor: "#ddd", 
-        padding: 12, 
-        marginBottom: 15, 
-        width: "100%", 
-        borderRadius: 8, 
-        fontSize: 16, 
+    input: {
+        borderWidth: 1,
+        borderColor: "#ddd",
+        padding: 12,
+        marginBottom: 15,
+        width: "100%",
+        borderRadius: 8,
+        fontSize: 16,
         backgroundColor: "#f9f9f9"
     },
     pickerContainer: {

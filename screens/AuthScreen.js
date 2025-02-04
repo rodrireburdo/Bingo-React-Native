@@ -10,7 +10,6 @@ const AuthScreen = ({ navigation }) => {
     const [codigo, setCodigo] = useState('');
     const [isLogin, setIsLogin] = useState(true);
     const [isCodeVerification, setIsCodeVerification] = useState(false);
-    const [vendedor, setVendedor] = useState(null);
     const [loading, setLoading] = useState(false); // Estado para mostrar el modal de carga
 
     const handleAuth = async () => {
@@ -19,8 +18,7 @@ const AuthScreen = ({ navigation }) => {
             return;
         }
 
-        setLoading(true); // Activar el modal de carga
-
+        setLoading(true);
         try {
             let response;
             if (isLogin) {
