@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, Modal, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, Modal, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; // Importar desde el nuevo paquete
 import { editarNumero } from '../services/apiClient'; 
 

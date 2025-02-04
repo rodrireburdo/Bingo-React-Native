@@ -21,6 +21,10 @@ const apiRequest = async (accion, parametros) => {
 export const crearVendedor = (nombre, email, password) => 
     apiRequest('crearVendedor', { nombre, email, password });
 
+// Funcion para validar codigo de verificacion
+export const validarCodigo = (email, codigo) => 
+    apiRequest('validarCodigo', { email, codigo });
+
 // Función para autenticar un vendedor
 export const autenticarVendedor = (email, password) => 
     apiRequest('autenticarVendedor', { email, password });

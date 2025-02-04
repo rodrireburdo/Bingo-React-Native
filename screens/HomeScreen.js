@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     nombreCell: {}, 
     numeroCell: { flex: 0.5 },
     cuotasCell: { flex: 0.6 },
-    noData: { textAlign: "center", fontSize: 16, marginTop: 20, color: "white" },
+    noData: { textAlign: "center", fontSize: 16, marginTop: 20, color: "black" },
     tabBar: { backgroundColor: "#3498db" },
     tabLabel: { color: "white", fontWeight: "bold" },
     headerContainer: { alignItems: 'flex-end', marginBottom: 20, },
