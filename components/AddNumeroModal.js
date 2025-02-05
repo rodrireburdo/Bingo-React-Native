@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Modal, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, Modal, StyleSheet, TouchableOpacity } from 'react-native';
 import { agregarNumerosDisponibles } from '../services/apiClient';
 import LoadingModal from './LoadingModal';
 
@@ -7,21 +7,26 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
     const [numeros, setNumeros] = useState('');
     const [listaNumeros, setListaNumeros] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [mensajeAPI, setMensajeAPI] = useState(null);
 
     // Función para agregar números
     const handleAgregar = async () => {
         if (!numeros.trim()) {
-            Alert.alert('Error', 'Debes ingresar al menos un número.');
+            setMensajeAPI('Debes ingresar al menos un número.');
             return;
         }
 
         const nuevosNumeros = numeros.split(',').map(num => num.trim().padStart(5, '0'));
 
-        setLoading(true); // Mostrar modal de carga
+        setLoading(true); 
 
         try {
             const response = await agregarNumerosDisponibles(idVendedor, nuevosNumeros);
-            
+
+            if (response?.mensaje) {
+                setMensajeAPI(response.mensaje);
+            }
+
             // Si algunos números fueron agregados, actualizamos la lista
             if (response.mensaje.includes("Números agregados correctamente")) {
                 const agregados = nuevosNumeros.filter(num => response.mensaje.includes(num));
@@ -30,17 +35,18 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
                 onSuccess();
             }
 
-            if (response?.mensaje) {
-                Alert.alert('Resultado', response.mensaje);
-            }
-            
         } catch (error) {
             console.error('Error al agregar números:', error);
-            Alert.alert('Error', 'No se pudieron agregar los números.');
+            setMensajeAPI('No se pudieron agregar los números.');
         } finally {
             setLoading(false);
-            onClose();
         }
+    };
+
+    // Función para cerrar el modal y limpiar mensaje
+    const handleClose = () => {
+        setMensajeAPI(null);
+        onClose();
     };
 
     return (
@@ -48,7 +54,7 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
             animationType="slide"
             transparent={true}
             visible={visible}
-            onRequestClose={onClose}
+            onRequestClose={handleClose}
         >
             <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
@@ -64,9 +70,21 @@ const AddNumeroModal = ({ visible, idVendedor, onClose, onSuccess }) => {
                         <Text style={styles.saveButtonText}>Agregar</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                         <Text style={styles.closeButtonText}>Cerrar</Text>
                     </TouchableOpacity>
+
+                    {mensajeAPI && (
+                        <View style={styles.messageContainer}>
+                            <Text style={styles.messageText}>{mensajeAPI}</Text>
+                            <TouchableOpacity
+                                style={styles.messageCloseButton}
+                                onPress={() => setMensajeAPI(null)}
+                            >
+                                <Text style={styles.messageCloseText}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             </View>
 
@@ -94,10 +112,11 @@ const styles = StyleSheet.create({
         elevation: 5
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "bold",
         marginBottom: 15,
-        color: "#333"
+        color: "#333",
+        textAlign: 'center'
     },
     input: {
         borderWidth: 1,
@@ -106,15 +125,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         borderRadius: 8,
         fontSize: 16
-    },
-    numeroItem: {
-        padding: 12,
-        backgroundColor: "#f2f2f2",
-        marginVertical: 5,
-        borderRadius: 8,
-        alignItems: "center",
-        borderColor: "#ddd",
-        borderWidth: 1
     },
     saveButton: {
         backgroundColor: '#28a745',
@@ -138,7 +148,30 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
-    }
+    },
+    messageContainer: {
+        marginTop: 15,
+        padding: 10,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    messageText: {
+        color: "#333",
+        fontSize: 16,
+        textAlign: "center",
+    },
+    messageCloseButton: {
+        marginTop: 10,
+        backgroundColor: "#6c757d",
+        paddingVertical: 5,
+        paddingHorizontal: 15,
+        borderRadius: 5,
+    },
+    messageCloseText: {
+        color: "#fff",
+        fontWeight: "bold",
+    },
 });
 
 export default AddNumeroModal;

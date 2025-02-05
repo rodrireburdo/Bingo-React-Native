@@ -8,7 +8,8 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
     const [cliente, setCliente] = useState('');
     const [estado, setEstado] = useState('');
     const [cuotasPagadas, setCuotasPagadas] = useState(0);
-    const [loading, setLoading] = useState(false); // Estado para el modal de carga
+    const [loading, setLoading] = useState(false); 
+    const [mensajeAPI, setMensaje] = useState(null);
 
     useEffect(() => {
         if (numero) {
@@ -20,7 +21,7 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
 
     const handleSave = async () => {
         if (!cliente || !estado || cuotasPagadas === '') {
-            Alert.alert("Error", "Por favor, complete todos los campos.");
+            setMensaje("Error", "Por favor, complete todos los campos.");
             return;
         }
 
@@ -30,23 +31,31 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
             const response = await editarNumero(id_vendedor, numero.numero, cliente, estado, cuotasPagadas);
 
             if (response.mensaje === 'Número actualizado correctamente') {
-                Alert.alert("Éxito", "Número actualizado correctamente.");
+                setMensaje("Éxito", "Número actualizado correctamente.");
                 onSave();
-                onClose();
             } else {
-                Alert.alert("Error", response.mensaje || "Hubo un problema al actualizar el número.");
+                setMensaje("Error", response.mensaje || "Hubo un problema al actualizar el número.");
             }
         } catch (error) {
-            Alert.alert("Error", "Error al guardar los cambios.");
+            setMensaje("Error", "Error al guardar los cambios.");
         } finally {
-            setLoading(false); // Ocultar modal de carga
+            setLoading(false); 
         }
+    };
+
+    const handleClose = () => {
+        setMensaje(null);
+        onClose();
     };
 
     if (!numero) return null;
 
     return (
-        <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+        <Modal 
+        animationType="slide" 
+        transparent={true} 
+        visible={visible} 
+        onRequestClose={handleClose}>
             <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Editar Número</Text>
@@ -89,9 +98,21 @@ const EditNumeroModal = ({ visible, id_vendedor, numero, onClose, onSave }) => {
                         <Text style={styles.saveButtonText}>Guardar</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                         <Text style={styles.closeButtonText}>Cerrar</Text>
                     </TouchableOpacity>
+
+                    {mensajeAPI && (
+                        <View style={styles.messageContainer}>
+                            <Text style={styles.messageText}>{mensajeAPI}</Text>
+                            <TouchableOpacity
+                                style={styles.messageCloseButton}
+                                onPress={() => setMensaje(null)}
+                            >
+                                <Text style={styles.messageCloseText}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             </View>
 
@@ -204,6 +225,29 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    messageContainer: {
+        marginTop: 15,
+        padding: 10,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    messageText: {
+        color: "#333",
+        fontSize: 16,
+        textAlign: "center",
+    },
+    messageCloseButton: {
+        marginTop: 10,
+        backgroundColor: "#6c757d",
+        paddingVertical: 5,
+        paddingHorizontal: 15,
+        borderRadius: 5,
+    },
+    messageCloseText: {
+        color: "#fff",
+        fontWeight: "bold",
     },
 });
 

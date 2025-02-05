@@ -1,4 +1,4 @@
-const API_URL = '';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz7eidu5BYm2I3wvBY0GAQOVkf8EsduqYBofR6TX6n5jtdmADFtAkBAv_2-xKj6blf4/exec';
 
 // Función genérica para hacer peticiones a la API
 const apiRequest = async (accion, parametros) => {
