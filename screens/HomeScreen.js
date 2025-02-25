@@ -33,7 +33,7 @@ const ListaNumeros = ({ numeros, onSelect, onDelete }) => (
                     {item.cliente || "Sin asignar"}
                 </Text>
                 <Text style={[styles.cell, styles.cuotasCell]}>
-                    {meses[item.cuotas_pagadas - 1] || "Ningina"}
+                    {meses[item.cuotas_pagadas - 1] || "Ninguna"}
                 </Text>
             </TouchableOpacity>
         )}
@@ -74,6 +74,11 @@ const HomeScreen = ({ route }) => {
         if (menuVisible) {
             setMenuVisible(false);
         }
+    };
+
+    // Función para obtener el número de elementos filtrados por estado
+    const getFilteredCount = (estado) => {
+        return filteredNumeros.filter(item => item.estado.toLowerCase() === estado.toLowerCase()).length;
     };
 
     const fetchNumeros = async () => {
@@ -214,6 +219,12 @@ const HomeScreen = ({ route }) => {
 
                     <LoadingModal visible={loading} />
 
+                    <View style={styles.countContainer}>
+                        <Text style={styles.filteredCountText}>
+                            Bingos vendidos: {getFilteredCount('vendido')} 
+                        </Text>
+                    </View>
+
                     {/* TabView */}
                     <TabView
                         navigationState={{ index, routes }}
@@ -259,8 +270,9 @@ const HomeScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: "#f8f9fa", paddingTop: 50 },
+    safeArea: { flex: 1, backgroundColor: "#f8f9fa", paddingTop: 35 },
     container: { flex: 1, padding: 0 },
+    filteredCountText: {fontSize: 16, color: "#333", textAlign: "center", marginBottom: 4, },
     title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 10, },
     row: { flexDirection: "row", padding: 10, borderBottomWidth: 1, borderColor: "#ddd", width: "100%" },
     rowEven: { backgroundColor: "#f1f1f1" },
@@ -277,13 +289,13 @@ const styles = StyleSheet.create({
     headerContainer: { alignItems: 'flex-end', marginBottom: 20, },
     addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
     addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
-    filtersContainer: { justifyContent: "space-between", marginBottom: 10, marginTop: 10, paddingHorizontal: 10, },
-    searchContainer: { flexDirection: "row", alignItems: "center",  borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 40, paddingHorizontal: 10, },
+    filtersContainer: { justifyContent: "space-between", marginTop: 10, paddingHorizontal: 10, },
+    searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 50, paddingHorizontal: 10, },
     searchIcon: { marginRight: 10, },
     searchInput: { flex: 1, fontSize: 16, color: "#333", height: 40, },
-    pickerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, },
+    pickerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 5, },
     pickerWrapper: { flex: 1, backgroundColor: "white", borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 10, },
-    picker: { height: 49, },
+    picker: { height: 55, },
     menuContainer: { marginButtom: 10, },
     menuContent: { flexDirection: "row", alignItems: "center", gap: 8, },
     menuText: { fontSize: 16, fontWeight: "bold", color: "#fff", },

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, View, ImageBackground } from 'react-native';
+import { LinearGradient } from "expo-linear-gradient";
 import { autenticarVendedor, crearVendedor, validarCodigo } from '../services/apiClient';
 import LoadingModal from '../components/LoadingModal';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import Entypo from '@expo/vector-icons/Entypo';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const AuthScreen = ({ navigation }) => {
     const [nombre, setNombre] = useState('');
@@ -89,75 +92,92 @@ const AuthScreen = ({ navigation }) => {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <LinearGradient
+            colors={["#4c669f", "#3b5998", "#192f6a"]} // Colores del degradado
+            style={styles.background}
         >
-            <LoadingModal visible={loading} />
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <LoadingModal visible={loading} />
 
-            {isCodeVerification ? (
-                <>
-                    <Text style={styles.title}>Verificar Código</Text>
-                    <TextInput
-                        placeholder="Código de 6 dígitos"
-                        style={styles.input}
-                        value={codigo}
-                        onChangeText={setCodigo}
-                        keyboardType="numeric"
-                        maxLength={6}
-                    />
-
-                    {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
-
-                    <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
-                        <Text style={styles.buttonText}>Verificar</Text>
-                    </TouchableOpacity>
-                </>
-            ) : (
-                <>
-                    <FontAwesome5 name="user-circle" size={100} color="black" />
-                    <Text style={styles.title}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
-                    {!isLogin && (
+                {isCodeVerification ? (
+                    <>
+                        <Text style={styles.title}>Verificar Código</Text>
                         <TextInput
-                            placeholder="Nombre"
+                            placeholder="Código de 6 dígitos"
                             style={styles.input}
-                            value={nombre}
-                            onChangeText={setNombre}
+                            value={codigo}
+                            onChangeText={setCodigo}
+                            keyboardType="numeric"
+                            maxLength={6}
                         />
-                    )}
-                    <TextInput
-                        placeholder="Correo"
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                    />
-                    <TextInput
-                        placeholder="Contraseña"
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                    />
 
-                    {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
+                        {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
 
-                    <TouchableOpacity style={styles.button} onPress={handleAuth}>
-                        <Text style={styles.buttonText}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-                        <Text style={styles.switchText}>
-                            {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handlePasswordReset}>
-                        <Text style={styles.switchText}>
-                            ¿Olvidaste tu contraseña?
-                        </Text>
-                    </TouchableOpacity>
-                </>
-            )}
-        </KeyboardAvoidingView>
+                        <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
+                            <Text style={styles.buttonText}>Verificar</Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    <>
+                        <FontAwesome name="user-circle-o" size={100} color="#fff" />
+                        <Text style={styles.title}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
+                        {!isLogin && (
+                            <View style={styles.inputContainer}>
+                                <FontAwesome name="user" size={24} color="black" style={styles.icon} />
+                                <TextInput
+                                    placeholder="Nombre"
+                                    placeholderTextColor="#fff"
+                                    style={styles.input}
+                                    value={nombre}
+                                    onChangeText={setNombre}
+                                />
+                            </View>
+                        )}
+                        <View style={styles.inputContainer}>
+                            <Entypo name="mail" size={24} color="black" style={styles.icon} />
+                            <TextInput
+                                placeholder="Correo"
+                                placeholderTextColor="#fff"
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                            />
+                        </View>
+                        <View style={styles.inputContainer}>
+                            <FontAwesome name="lock" size={24} color="black" style={styles.icon} />
+                            <TextInput
+                                placeholder="Contraseña"
+                                placeholderTextColor="#fff"
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                            />
+                        </View>
+
+                        {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
+
+                        <TouchableOpacity style={styles.button} onPress={handleAuth}>
+                            <Text style={styles.buttonText}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+                            <Text style={styles.switchText}>
+                                {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handlePasswordReset}>
+                            <Text style={styles.switchText}>
+                                ¿Olvidaste tu contraseña?
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 };
 
@@ -166,30 +186,40 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'linear-gradient(45deg, fuchsia, turquoise)',
         padding: 20,
+    },
+    background: {
+        flex: 1, 
     },
     title: {
         paddingTop: 20,
         fontSize: 30,
         fontWeight: 'bold',
-        color: '#333',
+        color: '#fff',
         marginBottom: 30,
         textAlign: 'center',
     },
     input: {
         width: '100%',
-        padding: 15,
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        backgroundColor: '#fff',
         fontSize: 16,
-        color: '#333',
+        color: '#fff',
+    },
+    inputContainer:{
+        flexDirection: "row", 
+        alignItems: "center", 
+        borderRadius: 10,
+        paddingVertical: 5,
+        paddingHorizontal: 20,
+        marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "#fff",
+    },
+    icon: {
+        marginRight: 10,
+        color: "#fff",
     },
     button: {
-        backgroundColor: '#007BFF',
+        backgroundColor: '#3498db',
         padding: 15,
         borderRadius: 8,
         marginTop: 10,
@@ -203,7 +233,7 @@ const styles = StyleSheet.create({
     },
     switchText: {
         marginTop: 20,
-        color: '#007BFF',
+        color: '#61bdfa',
         textAlign: 'center',
         fontSize: 16,
     },
