@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { autenticarVendedor, crearVendedor, validarCodigo } from '../services/apiClient';
 import LoadingModal from '../components/LoadingModal';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 const AuthScreen = ({ navigation }) => {
     const [nombre, setNombre] = useState('');
@@ -51,6 +52,9 @@ const AuthScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
+    };
+    const handlePasswordReset = () => {
+        navigation.navigate('PasswordReset');
     };
 
     const handleVerifyCode = async () => {
@@ -111,6 +115,7 @@ const AuthScreen = ({ navigation }) => {
                 </>
             ) : (
                 <>
+                    <FontAwesome5 name="user-circle" size={100} color="black" />
                     <Text style={styles.title}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
                     {!isLogin && (
                         <TextInput
@@ -145,6 +150,11 @@ const AuthScreen = ({ navigation }) => {
                             {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
                         </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity onPress={handlePasswordReset}>
+                        <Text style={styles.switchText}>
+                            ¿Olvidaste tu contraseña?
+                        </Text>
+                    </TouchableOpacity>
                 </>
             )}
         </KeyboardAvoidingView>
@@ -156,11 +166,12 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F7F7F7',
+        backgroundColor: 'linear-gradient(45deg, fuchsia, turquoise)',
         padding: 20,
     },
     title: {
-        fontSize: 28,
+        paddingTop: 20,
+        fontSize: 30,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 30,

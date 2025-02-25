@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbz7eidu5BYm2I3wvBY0GAQOVkf8EsduqYBofR6TX6n5jtdmADFtAkBAv_2-xKj6blf4/exec';
+const API_URL = '';
 
 // Función genérica para hacer peticiones a la API
 const apiRequest = async (accion, parametros) => {
@@ -28,6 +28,14 @@ export const validarCodigo = (email, codigo) =>
 // Función para autenticar un vendedor
 export const autenticarVendedor = (email, password) => 
     apiRequest('autenticarVendedor', { email, password });
+
+// Función para reenviar código de seguridad
+export const reenviarCodigo = (email) => 
+    apiRequest('reenviarCodigo', { email });
+
+// Función para cambiar contraseña si el código de seguridad es correcto
+export const cambiarContrasena = (email, codigo, nuevaPassword) => 
+    apiRequest('cambiarContrasena', { email, codigo, nuevaPassword });
 
 // Función para agregar números disponibles a un vendedor
 export const agregarNumerosDisponibles = (id_vendedor, numeros) => 

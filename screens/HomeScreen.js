@@ -1,6 +1,6 @@
 import React, { useEffect, useState, createContext, useContext } from "react";
 import {
-    View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Alert
+    View, Text, StyleSheet, FlatList, ActivityIndicator, Keyboard, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Alert, TouchableWithoutFeedback
 } from "react-native";
 import { obtenerNumerosPorVendedor, eliminarNumero } from "../services/apiClient";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
@@ -9,6 +9,8 @@ import { Picker } from '@react-native-picker/picker';
 import EditNumeroModal from "../components/EditNumeroModal";
 import AddNumeroModal from "../components/AddNumeroModal";
 import LoadingModal from '../components/LoadingModal';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 const meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -31,7 +33,7 @@ const ListaNumeros = ({ numeros, onSelect, onDelete }) => (
                     {item.cliente || "Sin asignar"}
                 </Text>
                 <Text style={[styles.cell, styles.cuotasCell]}>
-                    {meses[item.cuotas_pagadas - 1] || "0"}
+                    {meses[item.cuotas_pagadas - 1] || "Ningina"}
                 </Text>
             </TouchableOpacity>
         )}
@@ -62,8 +64,16 @@ const HomeScreen = ({ route }) => {
     const [menuVisible, setMenuVisible] = useState(false);
 
     const handleLogout = () => {
-        // Lógica para cerrar sesión (limpiar almacenamiento, redirigir a login, etc.)
-        navigation.navigate("Auth");  // Cambiar "Login" al nombre de tu pantalla de inicio de sesión
+        navigation.reset({
+            index: 0,
+            routes: [{ name: "Auth" }],
+        });
+    };
+
+    const closeMenu = () => {
+        if (menuVisible) {
+            setMenuVisible(false);
+        }
     };
 
     const fetchNumeros = async () => {
@@ -104,7 +114,7 @@ const HomeScreen = ({ route }) => {
                 {
                     text: "Eliminar",
                     onPress: async () => {
-                        setLoading(true); // Activar el modal de carga
+                        setLoading(true);
 
                         try {
                             const response = await eliminarNumero(vendedor.id_vendedor, item.numero);
@@ -137,20 +147,23 @@ const HomeScreen = ({ route }) => {
     ];
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <View style={styles.container}>
-                <View>
-                    <LoadingModal visible={loading} />
+        <TouchableWithoutFeedback onPress={closeMenu} accessible={false}>
+            <SafeAreaView style={styles.safeArea}>
+                <View style={styles.container}>
+                    <LoadingModal visible={loading && !modalVisible && selectedNumero == null} />
 
+                    {/* Botón de menú */}
                     <TouchableOpacity
                         onPress={() => setMenuVisible(!menuVisible)}
                         style={styles.menuButton}
                     >
-                        <Text style={styles.menuText}>
-                            {vendedor.nombre}
-                        </Text>
+                        <View style={styles.menuContent}>
+                            <FontAwesome name="user" size={24} color="#fff" />
+                            <Text style={styles.menuText}>{vendedor.nombre}</Text>
+                        </View>
                     </TouchableOpacity>
 
+                    {/* Menú desplegable */}
                     {menuVisible && (
                         <View style={styles.menu}>
                             <TouchableOpacity onPress={handleLogout}>
@@ -158,43 +171,50 @@ const HomeScreen = ({ route }) => {
                             </TouchableOpacity>
                         </View>
                     )}
-                </View>
-                <View style={styles.filtersContainer}>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar por nombre o número"
-                        value={searchText}
-                        onChangeText={setSearchText}
-                    />
-                    <View style={styles.pickerContainer}>
-                        <View style={styles.pickerWrapper}>
-                            <Picker
-                                selectedValue={selectedStartMonth}
-                                style={styles.picker}
-                                onValueChange={(itemValue) => setSelectedStartMonth(itemValue)}
-                            >
-                                <Picker.Item label="Desde" value="" />
-                                {meses.map((mes, index) => (
-                                    <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
-                                ))}
-                            </Picker>
+
+                    {/* Filtros */}
+                    <View style={styles.filtersContainer}>
+                        <View style={styles.searchContainer}>
+                            <FontAwesome6 name="magnifying-glass" size={20} color="gray" style={styles.searchIcon} />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Buscar por nombre o número"
+                                value={searchText}
+                                onChangeText={setSearchText}
+                                placeholderTextColor="gray"
+                            />
                         </View>
-                        <View style={styles.pickerWrapper}>
-                            <Picker
-                                selectedValue={selectedEndMonth}
-                                style={styles.picker}
-                                onValueChange={(itemValue) => setSelectedEndMonth(itemValue)}
-                            >
-                                <Picker.Item label="Hasta" value="" />
-                                {meses.map((mes, index) => (
-                                    <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
-                                ))}
-                            </Picker>
+                        <View style={styles.pickerContainer}>
+                            <View style={styles.pickerWrapper}>
+                                <Picker
+                                    selectedValue={selectedStartMonth}
+                                    style={styles.picker}
+                                    onValueChange={(itemValue) => setSelectedStartMonth(itemValue)}
+                                >
+                                    <Picker.Item label="Desde" value="" />
+                                    {meses.map((mes, index) => (
+                                        <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
+                                    ))}
+                                </Picker>
+                            </View>
+                            <View style={styles.pickerWrapper}>
+                                <Picker
+                                    selectedValue={selectedEndMonth}
+                                    style={styles.picker}
+                                    onValueChange={(itemValue) => setSelectedEndMonth(itemValue)}
+                                >
+                                    <Picker.Item label="Hasta" value="" />
+                                    {meses.map((mes, index) => (
+                                        <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
+                                    ))}
+                                </Picker>
+                            </View>
                         </View>
                     </View>
-                </View>
-                <LoadingModal visible={loading} />
 
+                    <LoadingModal visible={loading} />
+
+                    {/* TabView */}
                     <TabView
                         navigationState={{ index, routes }}
                         renderScene={renderScene}
@@ -203,33 +223,38 @@ const HomeScreen = ({ route }) => {
                         renderTabBar={(props) => (
                             <TabBar
                                 {...props}
-                                indicatorStyle={{ backgroundColor: "#fff" }}
+                                indicatorStyle={{ backgroundColor: "#F108B2" }}
                                 style={styles.tabBar}
                                 labelStyle={styles.tabLabel}
                             />
                         )}
                     />
-            </View>
-            <TouchableOpacity
-                onPress={() => setModalVisible(true)}
-                style={styles.addButton}
-            >
-                <Text style={styles.addButtonText}>Añadir Número</Text>
-            </TouchableOpacity>
-            <AddNumeroModal
-                visible={modalVisible}
-                idVendedor={vendedor.id_vendedor}
-                onClose={() => setModalVisible(false)}
-                onSuccess={fetchNumeros}
-            />
-            <EditNumeroModal
-                visible={!!selectedNumero}
-                numero={selectedNumero}
-                id_vendedor={vendedor.id_vendedor}
-                onClose={() => setSelectedNumero(null)}
-                onSave={fetchNumeros}
-            />
-        </SafeAreaView>
+                </View>
+
+                {/* Botón para añadir número */}
+                <TouchableOpacity
+                    onPress={() => setModalVisible(true)}
+                    style={styles.addButton}
+                >
+                    <Text style={styles.addButtonText}>Añadir Número</Text>
+                </TouchableOpacity>
+
+                {/* Modales */}
+                <AddNumeroModal
+                    visible={modalVisible}
+                    idVendedor={vendedor.id_vendedor}
+                    onClose={() => setModalVisible(false)}
+                    onSuccess={fetchNumeros}
+                />
+                <EditNumeroModal
+                    visible={!!selectedNumero}
+                    numero={selectedNumero}
+                    id_vendedor={vendedor.id_vendedor}
+                    onClose={() => setSelectedNumero(null)}
+                    onSave={fetchNumeros}
+                />
+            </SafeAreaView>
+        </TouchableWithoutFeedback>
     );
 };
 
@@ -253,13 +278,16 @@ const styles = StyleSheet.create({
     addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
     addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
     filtersContainer: { justifyContent: "space-between", marginBottom: 10, marginTop: 10, paddingHorizontal: 10, },
-    searchInput: { height: 40, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, paddingHorizontal: 10, backgroundColor: "white", fontSize: 16, marginBottom: 10, },
-    pickerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", },
-    pickerWrapper: { flex: 1, backgroundColor: "white", borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, },
-    picker: { backgroundColor: "#fff", height: "49", },
+    searchContainer: { flexDirection: "row", alignItems: "center",  borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 40, paddingHorizontal: 10, },
+    searchIcon: { marginRight: 10, },
+    searchInput: { flex: 1, fontSize: 16, color: "#333", height: 40, },
+    pickerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, },
+    pickerWrapper: { flex: 1, backgroundColor: "white", borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 10, },
+    picker: { height: 49, },
     menuContainer: { marginButtom: 10, },
-    menuButton: { padding: 9, backgroundColor: '#3498db', alignItems: 'center', justifyContent: 'center', marginButtom: 100, },
-    menuText: { color: 'white', fontSize: 16, },
+    menuContent: { flexDirection: "row", alignItems: "center", gap: 8, },
+    menuText: { fontSize: 16, fontWeight: "bold", color: "#fff", },
+    menuButton: { backgroundColor: "#3498db", paddingVertical: 10, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2, },
     menu: { position: 'absolute', top: 50, right: "30%", backgroundColor: '#fff', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 4, elevation: 5, padding: 10, width: 150, zIndex: 999, },
     menuItem: { padding: 10, fontSize: 16, color: '#333', },
 });
