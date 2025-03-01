@@ -6,11 +6,15 @@ import { obtenerNumerosPorVendedor, eliminarNumero } from "../services/apiClient
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
+import * as Print from 'expo-print';
+import { shareAsync } from 'expo-sharing';
 import EditNumeroModal from "../components/EditNumeroModal";
 import AddNumeroModal from "../components/AddNumeroModal";
 import LoadingModal from '../components/LoadingModal';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import Foundation from '@expo/vector-icons/Foundation';
+import Entypo from '@expo/vector-icons/Entypo';
 
 const meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -62,6 +66,7 @@ const HomeScreen = ({ route }) => {
     const [selectedStartMonth, setSelectedStartMonth] = useState("");
     const [selectedEndMonth, setSelectedEndMonth] = useState("");
     const [menuVisible, setMenuVisible] = useState(false);
+    const [personasAsignadas, setPersonasAsignadas] = useState([]);
 
     const handleLogout = () => {
         navigation.reset({
@@ -79,6 +84,90 @@ const HomeScreen = ({ route }) => {
     // Función para obtener el número de elementos filtrados por estado
     const getFilteredCount = (estado) => {
         return filteredNumeros.filter(item => item.estado.toLowerCase() === estado.toLowerCase()).length;
+    };
+
+    useEffect(() => {
+        guardarBingosVendidos();
+    }, [numeros]);
+
+    // Función para guardar en un array los números con estado "Vendido"
+    const guardarBingosVendidos = () => {
+        const personasInfo = filteredNumeros
+            .filter(item => item.estado.toLowerCase() === "vendido")
+            .map(item => ({
+                numero: String(item.numero).padStart(5, "0"),
+                nombre: item.cliente || "Sin asignar",
+                cuota: meses[item.cuotas_pagadas - 1] || "Ninguna",
+            }));
+
+        setPersonasAsignadas(personasInfo);
+    };
+
+    // Función para exportar a PDF
+    const exportarAPDF = async () => {
+        if (personasAsignadas.length === 0) {
+            Alert.alert("Error", "No hay datos para exportar.");
+            return;
+        }
+
+        Alert.alert(
+            "Confirmar Exportación",
+            "¿Deseas exportar la lista de bingos vendidos a PDF?",
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Exportar", onPress: async () => {
+                        const htmlContent = `
+                            <html>
+                                <head>
+                                    <style>
+                                        body { font-family: Arial, sans-serif; padding: 20px; }
+                                        h2 { text-align: center; }
+                                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                                        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                                        th { background-color: #f2f2f2; }
+                                    </style>
+                                </head>
+                                <body>
+                                    <h2>Lista de Bingos</h2>
+                                    <table>
+                                        <tr>
+                                            <th>Número</th>
+                                            <th>Nombre</th>
+                                            <th>Cuota</th>
+                                        </tr>
+                                        ${personasAsignadas.map(p => `
+                                            <tr>
+                                                <td>${p.numero}</td>
+                                                <td>${p.nombre}</td>
+                                                <td>${p.cuota}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </table>
+                                </body>
+                            </html>
+                        `;
+
+                        try {
+                            // Generar el archivo PDF
+                            const { uri } = await Print.printToFileAsync({ html: htmlContent });
+                            // Compartir el archivo PDF
+                            await shareAsync(uri, {
+                                dialogTitle: 'Exportar PDF',
+                                UTI: 'com.adobe.pdf',  // Tipo de archivo
+                                mimeType: 'application/pdf',
+                                subject: 'Lista de Bingos',
+                                title: 'Lista de Bingos',  // Aquí se establece el nombre del archivo
+                            });
+                            console.log("PDF guardado en:", uri);
+                        } catch (error) {
+                            console.error("Error al exportar PDF:", error);
+                            Alert.alert("Error", "No se pudo generar el PDF.");
+                        }
+                    }
+                },
+            ]
+        );
     };
 
     const fetchNumeros = async () => {
@@ -221,7 +310,7 @@ const HomeScreen = ({ route }) => {
 
                     <View style={styles.countContainer}>
                         <Text style={styles.filteredCountText}>
-                            Bingos vendidos: {getFilteredCount('vendido')} 
+                            Bingos vendidos: {getFilteredCount('vendido')}
                         </Text>
                     </View>
 
@@ -242,13 +331,29 @@ const HomeScreen = ({ route }) => {
                     />
                 </View>
 
-                {/* Botón para añadir número */}
-                <TouchableOpacity
-                    onPress={() => setModalVisible(true)}
-                    style={styles.addButton}
-                >
-                    <Text style={styles.addButtonText}>Añadir Número</Text>
-                </TouchableOpacity>
+                {/* Botón para añadir número y exportar a PDF */}
+                <View style={styles.exportAñadirContainer}>
+                    <View style={[styles.buttonContainer, styles.addButton, styles.buttonLeft]}>
+                        <Foundation name="page-export-pdf" size={24} color="#fff" />
+                        <TouchableOpacity
+                            onPress={() => {
+                                guardarBingosVendidos();
+                                exportarAPDF();
+                            }}
+                        >
+                            <Text style={styles.addButtonText}>Exportar a PDF</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={ [styles.buttonContainer, styles.addButton, styles.buttonRight] }>
+                        <Entypo name="circle-with-plus" size={24} color="#fff" />
+                        <TouchableOpacity
+                            onPress={() => setModalVisible(true)}
+                        >
+                            <Text style={styles.addButtonText}>Añadir Número</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
                 {/* Modales */}
                 <AddNumeroModal
@@ -272,7 +377,7 @@ const HomeScreen = ({ route }) => {
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: "#f8f9fa", paddingTop: 35 },
     container: { flex: 1, padding: 0 },
-    filteredCountText: {fontSize: 16, color: "#333", textAlign: "center", marginBottom: 4, },
+    filteredCountText: { fontSize: 16, color: "#333", textAlign: "center", marginBottom: 4, },
     title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 10, },
     row: { flexDirection: "row", padding: 10, borderBottomWidth: 1, borderColor: "#ddd", width: "100%" },
     rowEven: { backgroundColor: "#f1f1f1" },
@@ -289,6 +394,10 @@ const styles = StyleSheet.create({
     headerContainer: { alignItems: 'flex-end', marginBottom: 20, },
     addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
     addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
+    exportAñadirContainer: { flexDirection: "row", width: "100%", justifyContent: 'space-between', alignItems: 'center', },
+    buttonLeft: { borderRightColor: "#fff", borderRigthWidth: 1, },
+    buttonRight: { borderLeftColor: "#fff", borderLeftWidth: 1, },
+    buttonContainer: {flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, },
     filtersContainer: { justifyContent: "space-between", marginTop: 10, paddingHorizontal: 10, },
     searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 50, paddingHorizontal: 10, },
     searchIcon: { marginRight: 10, },
