@@ -57,7 +57,6 @@ const ListaNumeros = ({ numeros, onSelect, onDelete }) => (
 const HomeScreen = ({ route }) => {
     const { vendedor } = route.params;
     const navigation = useNavigation();
-    const [numeros, setNumeros] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedNumero, setSelectedNumero] = useState(null);
@@ -81,17 +80,36 @@ const HomeScreen = ({ route }) => {
         }
     };
 
+    const fetchNumeros = async () => {
+        setLoading(true);
+        try {
+            const response = await obtenerNumerosPorVendedor(vendedor.id_vendedor);
+            setNumeros(response.numeros || []);
+        } catch (error) {
+            console.error("Error al obtener los números:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchNumeros();
+    }, [vendedor.id_vendedor]);
+
     // Función para obtener el número de elementos filtrados por estado
     const getFilteredCount = (estado) => {
         return filteredNumeros.filter(item => item.estado.toLowerCase() === estado.toLowerCase()).length;
     };
 
+    const [numeros, setNumeros] = useState(filteredNumeros || []);
+
+    // useEffect que escucha los cambios en 'numeros' y ejecuta guardarBingosVendidos
     useEffect(() => {
         guardarBingosVendidos();
     }, [numeros]);
 
     // Función para guardar en un array los números con estado "Vendido"
-    const guardarBingosVendidos = () => {
+    const guardarBingosVendidos = async () => {
         const personasInfo = filteredNumeros
             .filter(item => item.estado.toLowerCase() === "vendido")
             .map(item => ({
@@ -100,11 +118,22 @@ const HomeScreen = ({ route }) => {
                 cuota: meses[item.cuotas_pagadas - 1] || "Ninguna",
             }));
 
+        // Actualizamos el estado con los números vendidos
         setPersonasAsignadas(personasInfo);
     };
 
+    const [exportar, setExportar] = useState(false); // Estado de control
+    // useEffect que se ejecuta cuando 'personasAsignadas' cambia
+    useEffect(() => {
+        if (exportar && personasAsignadas.length > 0) {
+            exportarAPDF();
+            setExportar(false); // Resetear la bandera después de la exportación
+        }
+    }, [exportar, personasAsignadas]);
+    
+
     // Función para exportar a PDF
-    const exportarAPDF = async () => {
+    const exportarAPDF = () => {
         if (personasAsignadas.length === 0) {
             Alert.alert("Error", "No hay datos para exportar.");
             return;
@@ -118,35 +147,35 @@ const HomeScreen = ({ route }) => {
                 {
                     text: "Exportar", onPress: async () => {
                         const htmlContent = `
-                            <html>
-                                <head>
-                                    <style>
-                                        body { font-family: Arial, sans-serif; padding: 20px; }
-                                        h2 { text-align: center; }
-                                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                                        th, td { border: 1px solid black; padding: 8px; text-align: left; }
-                                        th { background-color: #f2f2f2; }
-                                    </style>
-                                </head>
-                                <body>
-                                    <h2>Lista de Bingos</h2>
-                                    <table>
+                        <html>
+                            <head>
+                                <style>
+                                    body { font-family: Arial, sans-serif; padding: 20px; }
+                                    h2 { text-align: center; }
+                                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                                    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                                    th { background-color: #f2f2f2; }
+                                </style>
+                            </head>
+                            <body>
+                                <h2>Lista de Bingos</h2>
+                                <table>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Nombre</th>
+                                        <th>Cuota</th>
+                                    </tr>
+                                    ${personasAsignadas.map(p => `
                                         <tr>
-                                            <th>Número</th>
-                                            <th>Nombre</th>
-                                            <th>Cuota</th>
+                                            <td>${p.numero}</td>
+                                            <td>${p.nombre}</td>
+                                            <td>${p.cuota}</td>
                                         </tr>
-                                        ${personasAsignadas.map(p => `
-                                            <tr>
-                                                <td>${p.numero}</td>
-                                                <td>${p.nombre}</td>
-                                                <td>${p.cuota}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </table>
-                                </body>
-                            </html>
-                        `;
+                                    `).join('')}
+                                </table>
+                            </body>
+                        </html>
+                    `;
 
                         try {
                             // Generar el archivo PDF
@@ -170,21 +199,11 @@ const HomeScreen = ({ route }) => {
         );
     };
 
-    const fetchNumeros = async () => {
-        setLoading(true);
-        try {
-            const response = await obtenerNumerosPorVendedor(vendedor.id_vendedor);
-            setNumeros(response.numeros || []);
-        } catch (error) {
-            console.error("Error al obtener los números:", error);
-        } finally {
-            setLoading(false);
-        }
+    // Función que se ejecuta cuando el botón es presionado
+    const handleExportar = async () => {
+        await guardarBingosVendidos(); // Primero actualiza los datos
+        setExportar(true); // Activa la bandera para exportar
     };
-
-    useEffect(() => {
-        fetchNumeros();
-    }, [vendedor.id_vendedor]);
 
     const filteredNumeros = numeros.filter(item => {
         const matchesSearch = item.cliente.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -316,9 +335,14 @@ const HomeScreen = ({ route }) => {
 
                     {/* TabView */}
                     <TabView
+                        key={index}
                         navigationState={{ index, routes }}
                         renderScene={renderScene}
-                        onIndexChange={setIndex}
+                        onIndexChange={(newIndex) => {
+                            if (newIndex !== index) {
+                                setIndex(newIndex);
+                            }
+                        }}
                         initialLayout={{ width: Dimensions.get("window").width }}
                         renderTabBar={(props) => (
                             <TabBar
@@ -328,24 +352,24 @@ const HomeScreen = ({ route }) => {
                                 labelStyle={styles.tabLabel}
                             />
                         )}
+                        swipeEnabled={true}
+                        swipeThreshold={0.2}
                     />
+
                 </View>
 
                 {/* Botón para añadir número y exportar a PDF */}
                 <View style={styles.exportAñadirContainer}>
                     <View style={[styles.buttonContainer, styles.addButton, styles.buttonLeft]}>
                         <Foundation name="page-export-pdf" size={24} color="#fff" />
-                        <TouchableOpacity
-                            onPress={() => {
-                                guardarBingosVendidos();
-                                exportarAPDF();
-                            }}
+                        <TouchableOpacity 
+                            onPress={handleExportar}
                         >
                             <Text style={styles.addButtonText}>Exportar a PDF</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <View style={ [styles.buttonContainer, styles.addButton, styles.buttonRight] }>
+                    <View style={[styles.buttonContainer, styles.addButton, styles.buttonRight]}>
                         <Entypo name="circle-with-plus" size={24} color="#fff" />
                         <TouchableOpacity
                             onPress={() => setModalVisible(true)}
@@ -397,7 +421,7 @@ const styles = StyleSheet.create({
     exportAñadirContainer: { flexDirection: "row", width: "100%", justifyContent: 'space-between', alignItems: 'center', },
     buttonLeft: { borderRightColor: "#fff", borderRigthWidth: 1, },
     buttonRight: { borderLeftColor: "#fff", borderLeftWidth: 1, },
-    buttonContainer: {flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, },
+    buttonContainer: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, },
     filtersContainer: { justifyContent: "space-between", marginTop: 10, paddingHorizontal: 10, },
     searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 50, paddingHorizontal: 10, },
     searchIcon: { marginRight: 10, },
