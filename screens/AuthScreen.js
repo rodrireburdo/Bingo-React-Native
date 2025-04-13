@@ -1,30 +1,32 @@
 import React, { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, View, ImageBackground } from 'react-native';
+import { Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, View, } from 'react-native';
 import { LinearGradient } from "expo-linear-gradient";
 import { autenticarVendedor, crearVendedor, validarCodigo } from '../services/apiClient';
 import LoadingModal from '../components/LoadingModal';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Entypo from '@expo/vector-icons/Entypo';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { reenviarCodigo } from '../services/apiClient';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import { StatusBar } from 'react-native';
 
 const AuthScreen = ({ navigation }) => {
     const [nombre, setNombre] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [codigo, setCodigo] = useState('');
+    const [codigo, setCodigoEnviado] = useState('');
     const [isLogin, setIsLogin] = useState(true);
     const [isCodeVerification, setIsCodeVerification] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [mensajeAPI, setMensajeAPI] = useState('');
+    const [mensaje, setMensaje] = useState('');
 
     const handleAuth = async () => {
         if (!email || !password || (!isLogin && !nombre)) {
-            setMensajeAPI('Todos los campos son obligatorios');
+            setMensaje('Todos los campos son obligatorios');
             return;
         }
 
         setLoading(true);
-        setMensajeAPI('');
+        setMensaje('');
 
         try {
             let response;
@@ -32,14 +34,14 @@ const AuthScreen = ({ navigation }) => {
                 response = await autenticarVendedor(email, password);
                 if (response.mensaje === "Tu cuenta no está verificada. Revisa tu correo y valida tu código.") {
                     setIsCodeVerification(true);
-                    setMensajeAPI('Debes verificar tu cuenta. Ingresa el código enviado a tu correo.');
+                    setMensaje('Debes verificar tu cuenta. Ingresa el código enviado a tu correo.');
                     return;
                 }
             } else {
                 response = await crearVendedor(nombre, email, password);
                 if (response.id_vendedor) {
                     setIsCodeVerification(true);
-                    setMensajeAPI('Revisa tu correo electrónico para obtener el código de verificación.');
+                    setMensaje('Revisa tu correo electrónico para obtener el código de verificación.');
                     return;
                 }
             }
@@ -47,11 +49,11 @@ const AuthScreen = ({ navigation }) => {
             if (response.id_vendedor) {
                 navigation.replace('Home', { vendedor: response });
             } else {
-                setMensajeAPI(response.mensaje);
+                setMensaje(response.mensaje);
             }
         } catch (error) {
             console.error('Error en la autenticación:', error);
-            setMensajeAPI('Ocurrió un problema, inténtalo de nuevo.');
+            setMensaje('Ocurrió un problema, inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -62,12 +64,12 @@ const AuthScreen = ({ navigation }) => {
 
     const handleVerifyCode = async () => {
         if (codigo.length !== 6) {
-            setMensajeAPI('El código debe tener 6 dígitos');
+            setMensaje('El código debe tener 6 dígitos');
             return;
         }
 
         setLoading(true);
-        setMensajeAPI('');
+        setMensaje('');
 
         try {
             const response = await validarCodigo(email, codigo);
@@ -78,14 +80,36 @@ const AuthScreen = ({ navigation }) => {
                 if (vendedorActualizado.id_vendedor) {
                     navigation.replace('Home', { vendedor: vendedorActualizado });
                 } else {
-                    setMensajeAPI('No se pudo recuperar la información del vendedor.');
+                    setMensaje('No se pudo recuperar la información del vendedor.');
                 }
             } else {
-                setMensajeAPI('Código incorrecto. Inténtalo de nuevo.');
+                setMensaje('Código incorrecto. Inténtalo de nuevo.');
             }
         } catch (error) {
             console.error('Error al validar código:', error);
-            setMensajeAPI('Ocurrió un problema, inténtalo de nuevo.');
+            setMensaje('Ocurrió un problema, inténtalo de nuevo.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleReenviarCodigo = async () => {
+        if (!email) {
+            setMensaje('Por favor, ingresa tu correo electrónico.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await reenviarCodigo(email);
+            setMensaje(response.mensaje);
+
+            if (response.mensaje === 'Código reenviado correctamente') {
+                setCodigoEnviado(true);
+            }
+        } catch (error) {
+            setMensaje('Error al reenviar el código. Inténtalo nuevamente.');
+            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -96,6 +120,10 @@ const AuthScreen = ({ navigation }) => {
             colors={["#4c669f", "#3b5998", "#192f6a"]} // Colores del degradado
             style={styles.background}
         >
+            <StatusBar
+                backgroundColor="#4c669f" // El mismo color que tu barra de menú
+                barStyle="light-content" // Para texto claro (blanco)
+            />
             <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -105,19 +133,28 @@ const AuthScreen = ({ navigation }) => {
                 {isCodeVerification ? (
                     <>
                         <Text style={styles.title}>Verificar Código</Text>
-                        <TextInput
-                            placeholder="Código de 6 dígitos"
-                            style={styles.input}
-                            value={codigo}
-                            onChangeText={setCodigo}
-                            keyboardType="numeric"
-                            maxLength={6}
-                        />
-
-                        {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
+                        <View style={styles.inputContainer}>
+                            <AntDesign name="barcode" size={24} color="black" style={styles.icon} />
+                            <TextInput
+                                placeholder="Ingrese código de 6 dígitos"
+                                placeholderTextColor="#fff"
+                                style={styles.input}
+                                value={codigo}
+                                onChangeText={setCodigoEnviado}
+                                keyboardType="numeric"
+                                maxLength={6}
+                            />
+                        </View>
+                        {mensaje ? <Text style={styles.mensaje}>{mensaje}</Text> : null}
 
                         <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
                             <Text style={styles.buttonText}>Verificar</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={handleReenviarCodigo}>
+                            <Text style={styles.switchText}>
+                                Reenviar codigo de verificacion
+                            </Text>
                         </TouchableOpacity>
                     </>
                 ) : (
@@ -159,7 +196,7 @@ const AuthScreen = ({ navigation }) => {
                             />
                         </View>
 
-                        {mensajeAPI ? <Text style={styles.mensaje}>{mensajeAPI}</Text> : null}
+                        {mensaje ? <Text style={styles.mensaje}>{mensaje}</Text> : null}
 
                         <TouchableOpacity style={styles.button} onPress={handleAuth}>
                             <Text style={styles.buttonText}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
@@ -189,7 +226,7 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     background: {
-        flex: 1, 
+        flex: 1,
     },
     title: {
         paddingTop: 20,
@@ -204,9 +241,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#fff',
     },
-    inputContainer:{
-        flexDirection: "row", 
-        alignItems: "center", 
+    inputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
         borderRadius: 10,
         paddingVertical: 5,
         paddingHorizontal: 20,
@@ -238,6 +275,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     mensaje: {
+        marginTop: 15,
         color: 'red',
         fontSize: 16,
         marginBottom: 15,

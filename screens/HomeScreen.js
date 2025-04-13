@@ -1,11 +1,13 @@
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    View, Text, StyleSheet, FlatList, ActivityIndicator, Keyboard, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Alert, TouchableWithoutFeedback
+    View, Text, StyleSheet, FlatList, Dimensions, TouchableOpacity, TextInput, Alert, TouchableWithoutFeedback, Pressable,
 } from "react-native";
 import { obtenerNumerosPorVendedor, eliminarNumero } from "../services/apiClient";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from "react-native";
 import * as Print from 'expo-print';
 import { shareAsync } from 'expo-sharing';
 import EditNumeroModal from "../components/EditNumeroModal";
@@ -20,39 +22,119 @@ const meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const ListaNumeros = ({ numeros, onSelect, onDelete }) => (
-    <FlatList
-        data={numeros}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-            <TouchableOpacity
-                style={[styles.row, index % 2 === 0 ? styles.rowEven : styles.rowOdd]}
-                onPress={() => onSelect(item)}
-                onLongPress={() => onDelete(item)} // Se activa al mantener presionado
+const ListaNumeros = ({ numeros, onSelect, onDelete }) => {
+    const [sortBy, setSortBy] = useState("numero");
+    const [ascending, setAscending] = useState(true);
+    const [lastPress, setLastPress] = useState(0);
+    const doublePressThreshold = 300;
+
+    const toggleSort = (field) => {
+        if (sortBy === field) {
+            setAscending(!ascending);
+        } else {
+            setSortBy(field);
+            setAscending(true);
+        }
+    };
+
+    const sortedData = [...numeros].sort((a, b) => {
+        if (sortBy === "numero") {
+            return ascending ? a.numero - b.numero : b.numero - a.numero;
+        } else if (sortBy === "nombre") {
+            return ascending
+                ? (a.cliente || "").localeCompare(b.cliente || "")
+                : (b.cliente || "").localeCompare(a.cliente || "");
+        } else if (sortBy === "cuotas") {
+            return ascending ? a.cuotas_pagadas - b.cuotas_pagadas : b.cuotas_pagadas - a.cuotas_pagadas;
+        }
+        return 0;
+    });
+
+    const handleDoublePress = (item) => {
+        const currentTime = Date.now();
+        if (currentTime - lastPress < doublePressThreshold) {
+            onSelect(item);
+        }
+        setLastPress(currentTime);
+    };
+
+    const renderHeader = () => (
+        <View style={[styles.row, styles.header]}>
+            <Pressable
+                onPress={() => toggleSort("numero")}
+                style={[styles.headerTouchable, styles.numeroCell]}
             >
-                <Text style={[styles.cell, styles.numeroCell]}>
-                    {String(item.numero).padStart(5, "0")}
+                <Text style={styles.headerText}>
+                    Número {sortBy === "numero" ? (ascending ? "↑" : "↓") : ""}
                 </Text>
-                <Text style={[styles.cell, styles.nombreCell]}>
-                    {item.cliente || "Sin asignar"}
+            </Pressable>
+            <Pressable
+                onPress={() => toggleSort("nombre")}
+                style={[styles.headerTouchable, styles.nombreCell]}
+            >
+                <Text style={styles.headerText}>
+                    Nombre {sortBy === "nombre" ? (ascending ? "↑" : "↓") : ""}
                 </Text>
-                <Text style={[styles.cell, styles.cuotasCell]}>
-                    {meses[item.cuotas_pagadas - 1] || "Ninguna"}
+            </Pressable>
+            <Pressable
+                onPress={() => toggleSort("cuotas")}
+                style={[styles.headerTouchable, styles.cuotasCell]}
+            >
+                <Text style={styles.headerText}>
+                    Cuotas {sortBy === "cuotas" ? (ascending ? "↑" : "↓") : ""}
                 </Text>
-            </TouchableOpacity>
-        )}
-        ListHeaderComponent={() => (
-            <View style={[styles.row, styles.header]}>
-                <Text style={[styles.headerText, styles.numeroCell]}>Número</Text>
-                <Text style={styles.headerText}>Nombre</Text>
-                <Text style={[styles.headerText, styles.cuotasCell]}>Cuotas</Text>
-            </View>
-        )}
-        ListEmptyComponent={() => (
-            <Text style={styles.noData}>No hay números disponibles.</Text>
-        )}
-    />
-);
+            </Pressable>
+        </View>
+    );
+
+    const renderItem = ({ item, index }) => (
+        <Pressable
+            style={({ pressed }) => [
+                styles.row,
+                index % 2 === 0 ? styles.rowEven : styles.rowOdd,
+                pressed && styles.pressedState
+            ]}
+            onPress={() => handleDoublePress(item)}
+            onLongPress={() => onDelete(item)}
+            delayLongPress={300}
+        >
+            <Text style={[styles.cell, styles.numeroCell]}>
+                {String(item?.numero || 0).padStart(5, "0")}
+            </Text>
+            <Text
+                style={[styles.cell, styles.nombreCell]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+            >
+                {item?.cliente || "Sin asignar"}
+            </Text>
+            <Text style={[styles.cell, styles.cuotasCell]}>
+                {item?.cuotas_pagadas ? meses[item.cuotas_pagadas - 1] : "Ninguna"}
+            </Text>
+        </Pressable>
+    );
+
+    return (
+        <View style={styles.container}>
+            <FlatList
+                data={sortedData.filter(Boolean)}
+                keyExtractor={(item, index) => item?.id?.toString() || `item-${index}`}
+                keyboardShouldPersistTaps="handled"
+                renderItem={renderItem}
+                ListHeaderComponent={renderHeader}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.noData}>No hay números disponibles.</Text>
+                    </View>
+                }
+                initialNumToRender={10}
+                maxToRenderPerBatch={5}
+                windowSize={7}
+                removeClippedSubviews={true}
+            />
+        </View>
+    );
+};
 
 const HomeScreen = ({ route }) => {
     const { vendedor } = route.params;
@@ -66,6 +148,26 @@ const HomeScreen = ({ route }) => {
     const [selectedEndMonth, setSelectedEndMonth] = useState("");
     const [menuVisible, setMenuVisible] = useState(false);
     const [personasAsignadas, setPersonasAsignadas] = useState([]);
+    const [numeros, setNumeros] = useState([]);
+
+    const filteredNumeros = numeros.filter(item => {
+        if (!item || typeof item !== 'object') return false;
+
+        // Filtro por búsqueda
+        const cliente = item.cliente?.toLowerCase() || '';
+        const numeroStr = String(item.numero || '');
+        const matchesSearch = cliente.includes(searchText.toLowerCase()) ||
+            numeroStr.includes(searchText);
+
+        // Filtro por rango de meses
+        const cuotaMes = parseInt(item.cuotas_pagadas) || 0;
+        const startMonth = selectedStartMonth === "" ? 0 : parseInt(selectedStartMonth); // Si "Desde" está vacío, mínimo=0
+        const endMonth = selectedEndMonth === "" ? 12 : parseInt(selectedEndMonth); // Si "Hasta" está vacío, máximo=12
+
+        return matchesSearch &&
+            cuotaMes >= startMonth &&
+            cuotaMes <= endMonth;
+    });
 
     const handleLogout = () => {
         navigation.reset({
@@ -101,8 +203,6 @@ const HomeScreen = ({ route }) => {
         return filteredNumeros.filter(item => item.estado.toLowerCase() === estado.toLowerCase()).length;
     };
 
-    const [numeros, setNumeros] = useState(filteredNumeros || []);
-
     // useEffect que escucha los cambios en 'numeros' y ejecuta guardarBingosVendidos
     useEffect(() => {
         guardarBingosVendidos();
@@ -130,7 +230,7 @@ const HomeScreen = ({ route }) => {
             setExportar(false); // Resetear la bandera después de la exportación
         }
     }, [exportar, personasAsignadas]);
-    
+
 
     // Función para exportar a PDF
     const exportarAPDF = () => {
@@ -186,7 +286,7 @@ const HomeScreen = ({ route }) => {
                                 UTI: 'com.adobe.pdf',  // Tipo de archivo
                                 mimeType: 'application/pdf',
                                 subject: 'Lista de Bingos',
-                                title: 'Lista de Bingos',  // Aquí se establece el nombre del archivo
+                                title: 'Lista de Bingos',  // nombre del archivo
                             });
                             console.log("PDF guardado en:", uri);
                         } catch (error) {
@@ -204,18 +304,6 @@ const HomeScreen = ({ route }) => {
         await guardarBingosVendidos(); // Primero actualiza los datos
         setExportar(true); // Activa la bandera para exportar
     };
-
-    const filteredNumeros = numeros.filter(item => {
-        const matchesSearch = item.cliente.toLowerCase().includes(searchText.toLowerCase()) ||
-            String(item.numero).includes(searchText);
-
-        const cuotaMes = item.cuotas_pagadas;
-        const matchesMonthRange =
-            (selectedStartMonth === "" || cuotaMes >= parseInt(selectedStartMonth)) &&
-            (selectedEndMonth === "" || cuotaMes <= parseInt(selectedEndMonth));
-
-        return matchesSearch && matchesMonthRange;
-    });
 
     // Función para confirmar y eliminar número
     const confirmarEliminarNumero = (item) => {
@@ -261,7 +349,11 @@ const HomeScreen = ({ route }) => {
 
     return (
         <TouchableWithoutFeedback onPress={closeMenu} accessible={false}>
-            <SafeAreaView style={styles.safeArea}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }} edges={['top']}>
+                <StatusBar
+                    backgroundColor="#3498db" 
+                    barStyle="light-content"
+                />
                 <View style={styles.container}>
                     <LoadingModal visible={loading && !modalVisible && selectedNumero == null} />
 
@@ -301,24 +393,31 @@ const HomeScreen = ({ route }) => {
                             <View style={styles.pickerWrapper}>
                                 <Picker
                                     selectedValue={selectedStartMonth}
-                                    style={styles.picker}
-                                    onValueChange={(itemValue) => setSelectedStartMonth(itemValue)}
+                                    onValueChange={setSelectedStartMonth}
                                 >
-                                    <Picker.Item label="Desde" value="" />
+                                    <Picker.Item label="Desde" value="0" />
                                     {meses.map((mes, index) => (
-                                        <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
+                                        <Picker.Item
+                                            key={`start-${index}`}
+                                            label={`${mes}`}
+                                            value={(index + 1).toString()}
+                                        />
                                     ))}
                                 </Picker>
                             </View>
+
                             <View style={styles.pickerWrapper}>
                                 <Picker
                                     selectedValue={selectedEndMonth}
-                                    style={styles.picker}
-                                    onValueChange={(itemValue) => setSelectedEndMonth(itemValue)}
+                                    onValueChange={setSelectedEndMonth}
                                 >
-                                    <Picker.Item label="Hasta" value="" />
+                                    <Picker.Item label="Hasta" value="12" />
                                     {meses.map((mes, index) => (
-                                        <Picker.Item key={index} label={mes} value={(index + 1).toString()} />
+                                        <Picker.Item
+                                            key={`end-${index}`}
+                                            label={`${mes}`}
+                                            value={(index + 1).toString()}
+                                        />
                                     ))}
                                 </Picker>
                             </View>
@@ -329,40 +428,43 @@ const HomeScreen = ({ route }) => {
 
                     <View style={styles.countContainer}>
                         <Text style={styles.filteredCountText}>
-                            Bingos vendidos: {getFilteredCount('vendido')}
+                            Vendidos: {getFilteredCount('vendido')}
+                        </Text>
+                        <Text style={styles.filteredCountText}>
+                            Disponibles: {getFilteredCount('disponible')}
                         </Text>
                     </View>
 
                     {/* TabView */}
                     <TabView
-                        key={index}
                         navigationState={{ index, routes }}
                         renderScene={renderScene}
-                        onIndexChange={(newIndex) => {
-                            if (newIndex !== index) {
-                                setIndex(newIndex);
-                            }
-                        }}
+                        onIndexChange={setIndex}
                         initialLayout={{ width: Dimensions.get("window").width }}
-                        renderTabBar={(props) => (
-                            <TabBar
-                                {...props}
-                                indicatorStyle={{ backgroundColor: "#F108B2" }}
-                                style={styles.tabBar}
-                                labelStyle={styles.tabLabel}
-                            />
-                        )}
+                        renderTabBar={(props) => {
+                            const { key: _, ...restProps } = props;
+                            return (
+                                <TabBar
+                                    {...restProps}
+                                    indicatorStyle={{ backgroundColor: "#F108B2", height: 3 }}
+                                    style={[styles.tabBar, { backgroundColor: '#3498db' }]}
+                                    labelStyle={styles.tabLabel}
+                                />
+                            );
+                        }}
                         swipeEnabled={true}
-                        swipeThreshold={0.2}
+                        animationEnabled={true}
+                        lazy
+                        lazyPreloadDistance={1}
+                        sceneContainerStyle={styles.sceneContainer}
                     />
-
                 </View>
 
                 {/* Botón para añadir número y exportar a PDF */}
                 <View style={styles.exportAñadirContainer}>
                     <View style={[styles.buttonContainer, styles.addButton, styles.buttonLeft]}>
                         <Foundation name="page-export-pdf" size={24} color="#fff" />
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={handleExportar}
                         >
                             <Text style={styles.addButtonText}>Exportar a PDF</Text>
@@ -401,27 +503,23 @@ const HomeScreen = ({ route }) => {
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: "#f8f9fa", paddingTop: 35 },
     container: { flex: 1, padding: 0 },
-    filteredCountText: { fontSize: 16, color: "#333", textAlign: "center", marginBottom: 4, },
-    title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 10, },
+    filteredCountText: { fontSize: 16, color: "#333", textAlign: "center", marginBottom: 4 },
+    title: { fontSize: 22, fontWeight: "bold", textAlign: "center", },
+    countContainer: { flexDirection: "row", justifyContent: "center", gap: 80 },
     row: { flexDirection: "row", padding: 10, borderBottomWidth: 1, borderColor: "#ddd", width: "100%" },
-    rowEven: { backgroundColor: "#f1f1f1" },
-    rowOdd: { backgroundColor: "#fff" },
+    rowEven: { backgroundColor: "#f8f8f8" },
+    rowOdd: { backgroundColor: "#ffffff" },
     header: { backgroundColor: "#3498db", width: "100%", color: "white" },
-    headerText: { flex: 1, fontWeight: "bold", color: "white", textAlign: "center", },
+    headerText: { fontWeight: "bold", color: "white", textAlign: "center" },
+    headerTouchable: { flex: 1, alignItems: "center", justifyContent: "center" },
     cell: { flex: 1, textAlign: "center", paddingHorizontal: 5 },
-    nombreCell: {},
-    numeroCell: { flex: 0.5 },
-    cuotasCell: { flex: 0.6 },
+    nombreCell: { flex: 1 },
+    numeroCell: { flex: 0.4 },
+    cuotasCell: { flex: 0.4 },
     noData: { textAlign: "center", fontSize: 16, marginTop: 20, color: "black" },
     tabBar: { backgroundColor: "#3498db" },
     tabLabel: { color: "white", fontWeight: "bold" },
-    headerContainer: { alignItems: 'flex-end', marginBottom: 20, },
-    addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
-    addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
-    exportAñadirContainer: { flexDirection: "row", width: "100%", justifyContent: 'space-between', alignItems: 'center', },
-    buttonLeft: { borderRightColor: "#fff", borderRigthWidth: 1, },
-    buttonRight: { borderLeftColor: "#fff", borderLeftWidth: 1, },
-    buttonContainer: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, },
+    headerContainer: { alignItems: 'flex-end', marginBottom: 20, marginBottom: 16, position: 'relative' },
     filtersContainer: { justifyContent: "space-between", marginTop: 10, paddingHorizontal: 10, },
     searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#ccc", height: 50, paddingHorizontal: 10, },
     searchIcon: { marginRight: 10, },
@@ -430,11 +528,17 @@ const styles = StyleSheet.create({
     pickerWrapper: { flex: 1, backgroundColor: "white", borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 10, },
     picker: { height: 55, },
     menuContainer: { marginButtom: 10, },
-    menuContent: { flexDirection: "row", alignItems: "center", gap: 8, },
-    menuText: { fontSize: 16, fontWeight: "bold", color: "#fff", },
-    menuButton: { backgroundColor: "#3498db", paddingVertical: 10, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2, },
-    menu: { position: 'absolute', top: 50, right: "30%", backgroundColor: '#fff', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 4, elevation: 5, padding: 10, width: 150, zIndex: 999, },
-    menuItem: { padding: 10, fontSize: 16, color: '#333', },
+    menuContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    menuText: { fontSize: 16, fontSize: 15, fontWeight: 'bold', color: '#ffff' },
+    menuButton: { backgroundColor: "#3498db", paddingVertical: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { height: 2 } },
+    menu: { position: 'absolute', top: 50, right: 100, backgroundColor: '#fff', borderRadius: 8, paddingVertical: 8, width: 180, elevation: 5, zIndex: 100, justifyContent: 'center', alignItems: 'center', },
+    menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, gap: 10 },
+    exportAñadirContainer: { flexDirection: "row", width: "100%", justifyContent: 'space-between', alignItems: 'center', },
+    buttonContainer: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, },
+    addButton: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: "#3498db", alignItems: 'center', justifyContent: 'center', elevation: 5, },
+    addButtonText: { color: "white", fontSize: 15, fontWeight: "bold", textAlign: 'center', },
+    buttonLeft: { borderRightColor: "#fff", borderRigthWidth: 1, },
+    buttonRight: { borderLeftColor: "#fff", borderLeftWidth: 1, },
 });
 
 export default HomeScreen;

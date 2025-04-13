@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
 import { reenviarCodigo, cambiarContrasena } from '../services/apiClient';
 import { LinearGradient } from "expo-linear-gradient";
 import LoadingModal from '../components/LoadingModal';
@@ -76,6 +76,11 @@ const PasswordResetScreen = ({ navigation }) => {
             colors={["#4c669f", "#3b5998", "#192f6a"]}
             style={styles.background}
         >
+            <StatusBar
+                            backgroundColor="transparent"
+                            barStyle="light-content"
+                            translucent
+                        />
             <View style={styles.container}>
                 <LoadingModal visible={loading} />
                 <MaterialIcons name="lock-reset" size={110} color="#fff" />
